@@ -1,75 +1,20 @@
 #!/usr/bin/env bash
 #
-# ===== 全局变量 =====
-# -> 字体颜色定义 (彩色输出)
-Font_Black="\033[30m"
-Font_Red="\033[31m"
-Font_Green="\033[32m"
-Font_Yellow="\033[33m"
-Font_Blue="\033[34m"
-Font_Purple="\033[35m"
-Font_SkyBlue="\033[36m"
-Font_White="\033[37m"
-Font_Suffix="\033[0m"
-# -> 消息提示定义 (消息前缀)
-Msg_Info="${Font_Blue}[INFO]${Font_Suffix}"
-Msg_Warning="${Font_Yellow}[WARN]${Font_Suffix}"
-Msg_Debug="${Font_Yellow}[DEBUG]${Font_Suffix}"
-Msg_Error="${Font_Red}[ERROR]${Font_Suffix}"
-Msg_Success="${Font_Green}[SUCCESS]${Font_Suffix}"
-Msg_Fail="${Font_Red}[FAIL]${Font_Suffix}"
-Msg_Time="$(date +"[%Y/%m/%d %T]")"
-#
-# ===========================================================================
-# -> 系统信息模块 (Entrypoint) -> 执行
-function Func_Systeminfo_GetSysteminfo() {
-    API_Systeminfo_GetCPUinfo
-    API_Systeminfo_GetVMMinfo
-    API_Systeminfo_GetMemoryinfo
-    API_Systeminfo_GetDiskinfo
-    API_Systeminfo_GetOSReleaseinfo
-    API_Systeminfo_GetLinuxKernelinfo
-}
-# -> 系统信息模块 (DisplayOutput) -> 输出系统信息
-function Func_Systeminfo_ShowSysteminfo() {
-    echo -e "\n${Font_Yellow} -> System Information${Font_Suffix}\n"
-    echo -e " ${Font_Yellow}CPU Model Name:${Font_Suffix}\t\t${Font_SkyBlue}${Result_Systeminfo_CPUModelName}"
-    echo -e " ${Font_Yellow}CPU Cache Size:${Font_Suffix}\t\t${Font_SkyBlue}L1: ${Result_Systeminfo_CPUCacheSizeL1} / L2: ${Result_Systeminfo_CPUCacheSizeL2} / L3: ${Result_Systeminfo_CPUCacheSizeL3}"
-    if [ "${Result_Systeminfo_isPhysical}" = "1" ]; then
-        echo -e " ${Font_Yellow}CPU Specifications:${Font_Suffix}\t\t${Font_SkyBlue}${Result_Systeminfo_CPUSockets} Socket(s), ${Result_Systeminfo_CPUCores} Core(s), ${Result_Systeminfo_CPUThreads} Thread(s)"
-        if [ "${Result_Systeminfo_VirtReady}" = "1" ]; then
-            if [ "${Result_Systeminfo_IOMMU}" = "1" ]; then
-                echo -e " ${Font_Yellow}Virtualization Ready:${Font_Suffix}\t\t${Font_SkyBlue}Yes (Based on ${Result_Systeminfo_CPUVMX}, IOMMU Enabled)${Font_Suffix}"
-            else
-                echo -e " ${Font_Yellow}Virtualization Ready:${Font_Suffix}\t\t${Font_SkyBlue}Yes (Based on ${Result_Systeminfo_CPUVMX})${Font_Suffix}"
-            fi
-        else
-            echo -e " ${Font_Yellow}Virtualization Ready:${Font_Suffix}\t\t${Font_SkyBlue}No${Font_Suffix}"
-        fi
-    elif [ "$Result_Systeminfo_isPhysical" = "0" ]; then
-        echo -e " ${Font_Yellow}CPU Specifications:${Font_Suffix}\t\t${Font_SkyBlue}${Result_Systeminfo_CPUThreads} vCPU(s)${Font_Suffix}"
-        if [ "${Result_Systeminfo_VirtReady}" = "1" ]; then
-            if [ "${Result_Systeminfo_IOMMU}" = "1" ]; then
-                echo -e " ${Font_Yellow}Virtualization Ready:${Font_Suffix}\t\t${Font_SkyBlue}Yes (Based on ${Result_Systeminfo_CPUVMX}, Nested Virtualization Enabled, IOMMU Enabled${Font_Suffix})"
-            else
-                echo -e " ${Font_Yellow}Virtualization Ready:${Font_Suffix}\t\t${Font_SkyBlue}Yes (Based on ${Result_Systeminfo_CPUVMX}, Nested Virtualization Enabled${Font_Suffix})"
-            fi
-        else
-            echo -e " ${Font_Yellow}Virtualization Ready:${Font_Suffix}\t\t${Font_SkyBlue}No${Font_Suffix}"
-        fi
-    fi
-    echo -e " ${Font_Yellow}Virtualization Type:${Font_Suffix}\t\t${Font_SkyBlue}${Result_Systeminfo_VMMType}${Font_Suffix}"
-    echo -e " ${Font_Yellow}Memory Usage:${Font_Suffix}\t\t\t${Font_SkyBlue}${Result_Systeminfo_Memoryinfo}${Font_Suffix}"
-    echo -e " ${Font_Yellow}Swap Usage:${Font_Suffix}\t\t\t${Font_SkyBlue}${Result_Systeminfo_Swapinfo}${Font_Suffix}"
-    echo -e " ${Font_Yellow}Disk Usage:${Font_Suffix}\t\t\t${Font_SkyBlue}${Result_Systeminfo_Diskinfo}${Font_Suffix}"
-    echo -e " ${Font_Yellow}Boot Disk:${Font_Suffix}\t\t\t${Font_SkyBlue}${Result_Systeminfo_DiskRootPath}${Font_Suffix}"
-    echo -e " ${Font_Yellow}OS Release:${Font_Suffix}\t\t\t${Font_SkyBlue}${Result_Systeminfo_OSReleaseNameFull}${Font_Suffix}"
-    echo -e " ${Font_Yellow}Kernel Version:${Font_Suffix}\t\t${Font_SkyBlue}${Result_Systeminfo_LinuxKernelVersion}${Font_Suffix}"
-    return 0
-}
+RED="\033[31m"
+GREEN="\033[32m"
+YELLOW="\033[33m"
+PLAIN="\033[0m"
+SAVE_CURSOR="\033[s"
+RESTORE_CURSOR="\033[u"
+HIDE_CURSOR="\033[?25l"
+SHOW_CURSOR="\033[?25h"
+_red() { echo -e "\033[31m\033[01m$@\033[0m"; }
+_green() { echo -e "\033[32m\033[01m$@\033[0m"; }
+_yellow() { echo -e "\033[33m\033[01m$@\033[0m"; }
+_blue() { echo -e "\033[36m\033[01m$@\033[0m"; }
 #
 # -> 系统信息模块 (Collector) -> 获取CPU信息
-function API_Systeminfo_GetCPUinfo() {
+BenchAPI_Systeminfo_GetCPUinfo() {
     # CPU 基础信息检测
     local r_modelname && r_modelname="$(lscpu -B 2>/dev/null | grep -oP -m1 "(?<=Model name:).*(?=)" | sed -e 's/^[ ]*//g')"
     local r_cachesize_l1d_b && r_cachesize_l1d_b="$(lscpu -B 2>/dev/null | grep -oP "(?<=L1d cache:).*(?=)" | sed -e 's/^[ ]*//g')"
@@ -151,7 +96,7 @@ function API_Systeminfo_GetCPUinfo() {
 }
 #
 # -> 系统信息模块 (Collector) -> 获取内存及Swap信息
-function API_Systeminfo_GetMemoryinfo() {
+BenchAPI_Systeminfo_GetMemoryinfo() {
     # 内存信息
     local r_memtotal_kib && r_memtotal_kib="$(awk '/MemTotal/{print $2}' /proc/meminfo | head -n1)"
     local r_memtotal_mib && r_memtotal_mib="$(echo "$r_memtotal_kib" | awk '{printf "%.2f\n",$1/1024}')"
@@ -201,7 +146,7 @@ function API_Systeminfo_GetMemoryinfo() {
 }
 #
 # -> 系统信息模块 (Collector) -> 获取磁盘信息
-function API_Systeminfo_GetDiskinfo() {
+BenchAPI_Systeminfo_GetDiskinfo() {
     # 磁盘信息
     local r_diskpath_root && r_diskpath_root="$(df -x tmpfs / | awk "NR>1" | sed ":a;N;s/\\n//g;ta" | awk '{print $1}')"
     local r_disktotal_kib && r_disktotal_kib="$(df -x tmpfs / | grep -oE "[0-9]{4,}" | awk 'NR==1 {print $1}')"
@@ -232,7 +177,7 @@ function API_Systeminfo_GetDiskinfo() {
 }
 #
 # -> 系统信息模块 (Collector) -> 获取虚拟化信息
-function API_Systeminfo_GetVMMinfo() {
+BenchAPI_Systeminfo_GetVMMinfo() {
     if [ -f "/usr/bin/systemd-detect-virt" ]; then
         local r_vmmtype && r_vmmtype="$(/usr/bin/systemd-detect-virt 2>/dev/null)"
         case "${r_vmmtype}" in
@@ -350,7 +295,7 @@ function API_Systeminfo_GetVMMinfo() {
             return 0
             ;;
         *)
-            echo -e "${Msg_Error} API_Systeminfo_GetVirtinfo(): invalid result (${r_vmmtype}), please check parameter!"
+            echo -e "${Msg_Error} BenchAPI_Systeminfo_GetVirtinfo(): invalid result (${r_vmmtype}), please check parameter!"
             exit 1
             ;;
         esac
@@ -377,7 +322,7 @@ function API_Systeminfo_GetVMMinfo() {
 }
 #
 # -> 系统信息模块 (Collector) -> 获取Linux发行版信息
-function API_Systeminfo_GetOSReleaseinfo() {
+BenchAPI_Systeminfo_GetOSReleaseinfo() {
     local r_arch && r_arch="$(arch)"
     Result_Systeminfo_OSArch="$r_arch"
     # CentOS/Red Hat 判断
@@ -407,7 +352,7 @@ function API_Systeminfo_GetOSReleaseinfo() {
             return 0
             ;;
         *)
-            echo -e "${Msg_Error} API_Systeminfo_GetOSReleaseinfo(): invalid result (CentOS/Redhat-$r_prettyname ($r_arch)), please check parameter!"
+            echo -e "${Msg_Error} BenchAPI_Systeminfo_GetOSReleaseinfo(): invalid result (CentOS/Redhat-$r_prettyname ($r_arch)), please check parameter!"
             exit 1
             ;;
         esac
@@ -426,16 +371,270 @@ function API_Systeminfo_GetOSReleaseinfo() {
         Result_Systeminfo_OSReleaseNameFull="$r_prettyname ($r_arch)"
         return 0
     else
-        echo -e "${Msg_Error} API_Systeminfo_GetOSReleaseinfo(): invalid result ($r_prettyname ($r_arch)), please check parameter!"
+        echo -e "${Msg_Error} BenchAPI_Systeminfo_GetOSReleaseinfo(): invalid result ($r_prettyname ($r_arch)), please check parameter!"
         exit 1
     fi
 }
 #
 # -> 系统信息模块 (Collector) -> 获取Linux内核版本信息
-function API_Systeminfo_GetLinuxKernelinfo() {
+BenchAPI_Systeminfo_GetLinuxKernelinfo() {
     # 获取原始数据
     Result_Systeminfo_LinuxKernelVersion="$(uname -r)"
 }
+#
+# -> 查询对应变量或组件是否存在
+_exists() {
+    local cmd="$1"
+    if eval type type >/dev/null 2>&1; then
+        eval type "$cmd" >/dev/null 2>&1
+    elif command >/dev/null 2>&1; then
+        command -v "$cmd" >/dev/null 2>&1
+    else
+        which "$cmd" >/dev/null 2>&1
+    fi
+    local rt=$?
+    return ${rt}
+}
+#
+# -> 查询 NAT 类型
+check_nat_type() {
+    _yellow "NAT Type being detected ......"
+    if [[ ! -z "$IPV4" ]]; then
+        if [ -f "$TEMP_DIR/gostun" ]; then
+            chmod 777 $TEMP_DIR/gostun
+            output=$($TEMP_DIR/gostun | tail -n 1)
+            if [[ $output == *"NAT Type"* ]]; then
+                nat_type_r=$(echo "$output" | awk -F ':' '{print $NF}' | awk '{$1=$1;print}')
+            else
+                if [ "$en_status" = true ]; then
+                    nat_type_r="The query fails, please try other architectures of https://github.com/oneclickvirt/gostun by yourself"
+                else
+                    nat_type_r="查询失败，请自行尝试 https://github.com/oneclickvirt/gostun 的其他架构"
+                fi
+            fi
+        fi
+    fi
+}
+#
+# -> 系统信息模块 (Collector) -> 获取系统信息
+get_system_info() {
+    local ip4=$(echo "$IPV4" | tr -d '\n')
+    arch=$(uname -m)
+    if [ -n "$Result_Systeminfo_Diskinfo" ]; then
+        :
+    else
+        disk_size1=($(LC_ALL=C df -hPl | grep -wvE '\-|none|tmpfs|devtmpfs|by-uuid|chroot|Filesystem|udev|docker|snapd' | awk '{print $2}'))
+        disk_size2=($(LC_ALL=C df -hPl | grep -wvE '\-|none|tmpfs|devtmpfs|by-uuid|chroot|Filesystem|udev|docker|snapd' | awk '{print $3}'))
+        disk_total_size=$(calc_disk "${disk_size1[@]}")
+        disk_used_size=$(calc_disk "${disk_size2[@]}")
+    fi
+    if [ -f "/proc/cpuinfo" ]; then
+        cname=$(awk -F: '/model name/ {name=$2} END {print name}' /proc/cpuinfo | sed 's/^[ \t]*//;s/[ \t]*$//')
+        cores=$(awk -F: '/processor/ {core++} END {print core}' /proc/cpuinfo)
+        freq=$(awk -F'[ :]' '/cpu MHz/ {print $4;exit}' /proc/cpuinfo)
+        ccache=$(awk -F: '/cache size/ {cache=$2} END {print cache}' /proc/cpuinfo | sed 's/^[ \t]*//;s/[ \t]*$//')
+        CPU_AES=$(cat /proc/cpuinfo | grep aes)
+        CPU_VIRT=$(cat /proc/cpuinfo | grep 'vmx\|svm')
+        up=$(awk '{a=$1/86400;b=($1%86400)/3600;c=($1%3600)/60} {printf("%d days, %d hour %d min\n",a,b,c)}' /proc/uptime)
+        if _exists "w"; then
+            load=$(
+                LANG=C
+                w | head -1 | awk -F'load average:' '{print $2}' | sed 's/^[ \t]*//;s/[ \t]*$//'
+            )
+        elif _exists "uptime"; then
+            load=$(
+                LANG=C
+                uptime | head -1 | awk -F'load average:' '{print $2}' | sed 's/^[ \t]*//;s/[ \t]*$//'
+            )
+        fi
+    elif [ "${Var_OSRelease}" == "freebsd" ]; then
+        cname=$($sysctl_path -n hw.model)
+        cores=$($sysctl_path -n hw.ncpu)
+        freq=$($sysctl_path -n dev.cpu.0.freq 2>/dev/null || echo "")
+        ccache=$($sysctl_path -n hw.cacheconfig 2>/dev/null | awk -F: '{print $2}' | sed 's/^[ \t]*//;s/[ \t]*$//' || echo "")
+        CPU_AES=$($sysctl_path -a | grep -E 'crypto.aesni' | awk '{print $2}')
+        CPU_VIRT=$($sysctl_path -a | grep -E 'hw.vmx|hw.svm' | awk '{print $2}')
+        up=$($sysctl_path -n kern.boottime | perl -MPOSIX -nE 'if (/sec = (\d+), usec = (\d+)/) { $boottime = $1; $uptime = time() - $boottime; $days = int($uptime / 86400); $hours = int(($uptime % 86400) / 3600); $minutes = int(($uptime % 3600) / 60); say "$days days, $hours hours, $minutes minutes" }')
+        if _exists "w"; then
+            load=$(w | awk '{print $(NF-2), $(NF-1), $NF}' | head -n 1)
+        elif _exists "uptime"; then
+            load=$(uptime | awk '{print $(NF-2), $(NF-1), $NF}')
+        fi
+    fi
+    if [ -z "$cname" ] || [ ! -e /proc/cpuinfo ]; then
+        cname=$(lscpu | grep "Model name" | sed 's/Model name: *//g')
+        if [ $? -ne 0 ]; then
+            ${PACKAGE_INSTALL[int]} util-linux
+            cname=$(lscpu | grep "Model name" | sed 's/Model name: *//g')
+        fi
+        if [ -z "$cname" ]; then
+            cname=$(cat /proc/device-tree/model)
+        fi
+    fi
+    cname=$(echo -n "$cname" | tr '\n' ' ' | sed -E 's/ +/ /g')
+    if command -v free >/dev/null 2>&1; then
+        if free -m | grep -q '内存'; then # 如果输出中包含 "内存" 关键词
+            tram=$(free -m | awk '/内存/{print $2}')
+            uram=$(free -m | awk '/内存/{print $3}')
+            swap=$(free -m | awk '/交换/{print $2}')
+            uswap=$(free -m | awk '/交换/{print $3}')
+        else
+            tram=$(
+                LANG=C
+                free -m | awk '/Mem/ {print $2}'
+            )
+            uram=$(
+                LANG=C
+                free -m | awk '/Mem/ {print $3}'
+            )
+            swap=$(
+                LANG=C
+                free -m | awk '/Swap/ {print $2}'
+            )
+            uswap=$(
+                LANG=C
+                free -m | awk '/Swap/ {print $3}'
+            )
+        fi
+    else
+        tram=$($sysctl_path -n hw.physmem | awk '{printf "%.0f", $1/1024/1024}')
+        uram=$($sysctl_path -n vm.stats.vm.v_active_count | awk '{printf "%.0f", $1/1024}')
+        swap=$(swapinfo -k | awk 'NR>1{sum+=$2} END{printf "%.0f", sum/1024}')
+        uswap=$(swapinfo -k | awk 'NR>1{sum+=$4} END{printf "%.0f", sum/1024}')
+    fi
+    if _exists "getconf"; then
+        lbit=$(getconf LONG_BIT)
+    else
+        echo ${arch} | grep -q "64" && lbit="64" || lbit="32"
+    fi
+    kern=$(uname -r)
+    if [ -z "$sysctl_path" ]; then
+        tcpctrl="None"
+    fi
+    tcpctrl=$($sysctl_path -n net.ipv4.tcp_congestion_control 2>/dev/null)
+    if [ $? -ne 0 ]; then
+        tcpctrl="未设置TCP拥塞控制算法"
+    else
+        if [ $tcpctrl == "bbr" ]; then
+            :
+        else
+            if lsmod | grep bbr >/dev/null; then
+                reading "是否要开启bbr再进行测试？(回车则默认不开启) [y/n] " confirmbbr
+                echo ""
+                if [ "$confirmbbr" != "y" ]; then
+                    echo "net.core.default_qdisc=fq" >>"$sysctl_conf"
+                    echo "net.ipv4.tcp_congestion_control=bbr" >>"$sysctl_conf"
+                    $sysctl_path -p
+                fi
+                tcpctrl=$($sysctl_path -n net.ipv4.tcp_congestion_control 2>/dev/null)
+                if [ $? -ne 0 ]; then
+                    tcpctrl="None"
+                fi
+            fi
+        fi
+    fi
+}
 
-Func_Systeminfo_GetSysteminfo
-Func_Systeminfo_ShowSysteminfo
+# => 主要模块
+script() {
+    BenchAPI_Systeminfo_GetCPUinfo
+    BenchAPI_Systeminfo_GetMemoryinfo
+    BenchAPI_Systeminfo_GetDiskinfo
+    BenchAPI_Systeminfo_GetVMMinfo
+    BenchAPI_Systeminfo_GetOSReleaseinfo
+    BenchAPI_Systeminfo_GetLinuxKernelinfo
+    get_system_info
+    check_nat_type
+    # CPU
+    if [ -n "$cname" ] >/dev/null 2>&1; then
+        echo " CPU 型号          : $(_blue "$cname")"
+    elif [ -n "$Result_Systeminfo_CPUModelName" ] >/dev/null 2>&1; then
+        echo " CPU 型号          : $(_blue "$Result_Systeminfo_CPUModelName")"
+    else
+        echo " CPU 型号          : $(_blue "无法检测到CPU型号")"
+    fi
+    # CPU 核心数
+    if [[ -n "$Result_Systeminfo_isPhysical" && "$Result_Systeminfo_isPhysical" = "1" ]] >/dev/null 2>&1; then
+        if [ -n "$Result_Systeminfo_CPUSockets" ] && [ "$Result_Systeminfo_CPUSockets" -ne 0 ] &&
+            [ -n "$Result_Systeminfo_CPUCores" ] && [ "$Result_Systeminfo_CPUCores" -ne 0 ] &&
+            [ -n "$Result_Systeminfo_CPUThreads" ] && [ "$Result_Systeminfo_CPUThreads" -ne 0 ] >/dev/null 2>&1; then
+            echo " CPU 核心数        : $(_blue "${Result_Systeminfo_CPUSockets} 物理核心, ${Result_Systeminfo_CPUCores} 总核心, ${Result_Systeminfo_CPUThreads} 总线程数")"
+        elif [ -n "$cores" ]; then
+            echo " CPU 核心数        : $(_blue "$cores")"
+        else
+            echo " CPU 核心数        : $(_blue "无法检测到CPU核心数量")"
+        fi
+    elif [[ -n "$Result_Systeminfo_isPhysical" && "$Result_Systeminfo_isPhysical" = "0" ]] >/dev/null 2>&1; then
+        if [[ -n "$Result_Systeminfo_CPUThreads" && "$Result_Systeminfo_CPUThreads" -ne 0 ]] >/dev/null 2>&1; then
+            echo " CPU 核心数        : $(_blue "${Result_Systeminfo_CPUThreads}")"
+        elif [ -n "$cores" ] >/dev/null 2>&1; then
+            echo " CPU 核心数        : $(_blue "$cores")"
+        else
+            echo " CPU 核心数        : $(_blue "无法检测到CPU核心数量")"
+        fi
+    else
+        echo " CPU 核心数        : $(_blue "$cores")"
+    fi
+    # CPU 频率
+    if [ -n "$freq" ] >/dev/null 2>&1; then
+        echo " CPU 频率          : $(_blue "$freq MHz")"
+    fi
+    # CPU 缓存
+    if [ -n "$Result_Systeminfo_CPUCacheSizeL1" ] && [ -n "$Result_Systeminfo_CPUCacheSizeL2" ] && [ -n "$Result_Systeminfo_CPUCacheSizeL3" ] >/dev/null 2>&1; then
+        echo " CPU 缓存          : $(_blue "L1: ${Result_Systeminfo_CPUCacheSizeL1} / L2: ${Result_Systeminfo_CPUCacheSizeL2} / L3: ${Result_Systeminfo_CPUCacheSizeL3}")"
+    elif [ -n "$ccache" ] >/dev/null 2>&1; then
+        echo " CPU 缓存          : $(_blue "$ccache")"
+    fi
+    # AES-NI指令集
+    # [[ -z "$CPU_AES" ]] && CPU_AES="\xE2\x9D\x8C Disabled" || CPU_AES="\xE2\x9C\x94 Enabled"
+    # echo " AES-NI指令集      : $(_blue "$CPU_AES")"
+    if [[ -z "$CPU_AES" ]]; then
+        echo " AES-NI指令集      : $(_yellow "Disabled")"
+    else
+        echo " AES-NI指令集      : $(_green "Enabled")"
+    fi
+    # VM-x/AMD-V支持
+    # [[ -z "$CPU_VIRT" ]] && CPU_VIRT="\xE2\x9D\x8C Disabled" || CPU_VIRT="\xE2\x9C\x94 Enabled"
+    # echo " VM-x/AMD-V支持    : $(_blue "$CPU_VIRT")"
+    if [[ -z "$CPU_VIRT" ]]; then
+        echo " VM-x/AMD-V支持    : $(_yellow "Disabled")"
+    else
+        echo " VM-x/AMD-V支持    : $(_green "Enabled")"
+    fi
+    # 内存
+    if [ -n "$Result_Systeminfo_Memoryinfo" ] >/dev/null 2>&1; then
+        echo " 内存              : $(_blue "$Result_Systeminfo_Memoryinfo")"
+    elif [ -n "$tram" ] && [ -n "$uram" ] >/dev/null 2>&1; then
+        echo " 内存              : $(_yellow "$tram MB") $(_blue "($uram MB 已用)")"
+    fi
+    # Swap
+    if [ -n "$Result_Systeminfo_Swapinfo" ] >/dev/null 2>&1; then
+        echo " Swap              : $(_blue "$Result_Systeminfo_Swapinfo")"
+    elif [ -n "$swap" ] && [ -n "$uswap" ] >/dev/null 2>&1; then
+        echo " Swap              : $(_blue "$swap MB ($uswap MB 已用)")"
+    fi
+    # 硬盘空间
+    if [ -n "$Result_Systeminfo_Diskinfo" ] >/dev/null 2>&1; then
+        echo " 硬盘空间          : $(_blue "$Result_Systeminfo_Diskinfo")"
+    else
+        echo " 硬盘空间          : $(_yellow "$disk_total_size GB") $(_blue "($disk_used_size GB 已用)")"
+    fi
+    # 启动盘路径
+    if [ -n "$Result_Systeminfo_DiskRootPath" ] >/dev/null 2>&1; then
+        echo " 启动盘路径        : $(_blue "$Result_Systeminfo_DiskRootPath")"
+    fi
+    echo " 系统在线时间      : $(_blue "$up")"
+    echo " 负载              : $(_blue "$load")"
+    if [ -n "$Result_Systeminfo_OSReleaseNameFull" ] >/dev/null 2>&1; then
+        echo " 系统              : $(_blue "$Result_Systeminfo_OSReleaseNameFull")"
+    elif [ -n "$DISTRO" ] >/dev/null 2>&1; then
+        echo " 系统              : $(_blue "$DISTRO")"
+    fi
+    echo " 架构              : $(_blue "$arch ($lbit Bit)")"
+    echo " 内核              : $(_blue "$kern")"
+    echo " TCP加速方式       : $(_yellow "$tcpctrl")"
+    echo " 虚拟化架构        : $(_blue "$Result_Systeminfo_VMMType")"
+    # [[ -n "$nat_type_r" ]] && echo " NAT类型           : $(_blue "$nat_type_r")"
+}
+
+script
