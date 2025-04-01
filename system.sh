@@ -14,6 +14,7 @@ _green() { echo -e "\033[32m\033[01m$@\033[0m"; }
 _yellow() { echo -e "\033[33m\033[01m$@\033[0m"; }
 _blue() { echo -e "\033[36m\033[01m$@\033[0m"; }
 # ==========================================
+clear
 
 if [ -n "$cname" ] >/dev/null 2>&1; then
     echo " CPU 型号          : $(_blue "$cname")"
