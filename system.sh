@@ -545,6 +545,8 @@ script() {
     BenchAPI_Systeminfo_GetLinuxKernelinfo
     get_system_info
     check_nat_type
+    echo "-------------------------------基础信息查询--------------------------------"
+    echo "-------------------------------------------------------------------------"
     # CPU
     if [ -n "$cname" ] >/dev/null 2>&1; then
         echo " CPU 型号          : $(_blue "$cname")"
@@ -635,6 +637,7 @@ script() {
     echo " TCP加速方式       : $(_yellow "$tcpctrl")"
     echo " 虚拟化架构        : $(_blue "$Result_Systeminfo_VMMType")"
     # [[ -n "$nat_type_r" ]] && echo " NAT类型           : $(_blue "$nat_type_r")"
+    echo "-------------------------------------------------------------------------"
 }
 
 script
