@@ -1,5 +1,20 @@
 #!/usr/bin/env bash
 
+# =============== 默认输入设置 ===============
+RED="\033[31m"
+GREEN="\033[32m"
+YELLOW="\033[33m"
+PLAIN="\033[0m"
+SAVE_CURSOR="\033[s"
+RESTORE_CURSOR="\033[u"
+HIDE_CURSOR="\033[?25l"
+SHOW_CURSOR="\033[?25h"
+_red() { echo -e "\033[31m\033[01m$@\033[0m"; }
+_green() { echo -e "\033[32m\033[01m$@\033[0m"; }
+_yellow() { echo -e "\033[33m\033[01m$@\033[0m"; }
+_blue() { echo -e "\033[36m\033[01m$@\033[0m"; }
+# ==========================================
+
 if [ -n "$cname" ] >/dev/null 2>&1; then
     echo " CPU 型号          : $(_blue "$cname")"
 elif [ -n "$Result_Systeminfo_CPUModelName" ] >/dev/null 2>&1; then
